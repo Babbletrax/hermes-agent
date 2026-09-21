@@ -30,6 +30,7 @@ import {
   openFindBar
 } from '@/store/find-in-page'
 import { toggleHud } from '@/store/hud'
+import { toggleSimpleMode } from '@/store/interface-mode'
 import { $capture, $comboIndex, endCapture, setBinding } from '@/store/keybinds'
 import {
   cycleSidebarGrouping,
@@ -48,7 +49,6 @@ import {
   switchToDefaultProfile,
   toggleShowAllProfiles
 } from '@/store/profile'
-import { toggleSimpleMode } from '@/store/interface-mode'
 import { toggleProfileRailVisible } from '@/store/profile-rail-prefs'
 import { openFolderAsProject } from '@/store/projects'
 import { toggleReview } from '@/store/review'

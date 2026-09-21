@@ -31,6 +31,7 @@ import { normalizeSessionSource, sessionSourceLabel } from '@/lib/session-source
 import { cn } from '@/lib/utils'
 import { $activeConnectionId } from '@/store/connections'
 import { $cronJobs } from '@/store/cron'
+import { $interfaceMode, $showsAdvancedChrome, shownInMode } from '@/store/interface-mode'
 import { $bindings } from '@/store/keybinds'
 import {
   $dismissedAutoProjectIds,
@@ -82,7 +83,6 @@ import {
   normalizeProfileKey,
   sidebarProfileForScope
 } from '@/store/profile'
-import { $interfaceMode, $showsAdvancedChrome, shownInMode } from '@/store/interface-mode'
 import { $profileRailVisible } from '@/store/profile-rail-prefs'
 import {
   $activeProjectId,
@@ -425,8 +425,10 @@ export function ChatSidebar({
       }),
     [navContributions]
   )
+
   const interfaceMode = useStore($interfaceMode)
   const showsAdvancedChrome = useStore($showsAdvancedChrome)
+
   const navItems = useMemo(
     () => [...SIDEBAR_NAV, ...contributedNav].filter(shownInMode(interfaceMode)),
     [contributedNav, interfaceMode]

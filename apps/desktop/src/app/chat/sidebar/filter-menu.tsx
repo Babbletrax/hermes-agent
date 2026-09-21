@@ -21,6 +21,7 @@ import {
 import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
 import { cn } from '@/lib/utils'
+import { $showsAdvancedChrome } from '@/store/interface-mode'
 import {
   $sidebarCardRows,
   $sidebarFiltersActive,
@@ -60,7 +61,6 @@ import {
   requestProfileCreate,
   toggleShowAllProfiles
 } from '@/store/profile'
-import { $showsAdvancedChrome } from '@/store/interface-mode'
 import { $profileRailVisible, toggleProfileRailVisible } from '@/store/profile-rail-prefs'
 import { runImportProfileFlow } from '@/store/profile-share'
 import { $projectTree } from '@/store/projects'
