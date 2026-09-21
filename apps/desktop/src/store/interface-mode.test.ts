@@ -94,14 +94,12 @@ describe('modeBound resolver', () => {
   })
 
   it('leaves a surface Simple has no opinion on alone', async () => {
-    const { modeBound, modeShadows, setInterfaceMode, $modeShadowed } = await loadStore()
+    const { modeBound, setInterfaceMode, $modeShadowed } = await loadStore()
 
     setInterfaceMode('simple')
-    expect(modeShadows('statusbarVisible')).toBe(true)
     expect($modeShadowed('statusbarVisible').get()).toBe(true)
 
     setInterfaceMode('advanced')
-    expect(modeShadows('statusbarVisible')).toBe(false)
     expect($modeShadowed('statusbarVisible').get()).toBe(false)
 
     const $pref = atom<'product' | 'technical'>('technical')
@@ -142,17 +140,5 @@ describe('tiers', () => {
     expect($showsAdvancedChrome.get()).toBe(true)
     setInterfaceMode('simple')
     expect($showsAdvancedChrome.get()).toBe(false)
-  })
-
-  it('files a layout by the panes it shows, never by its name', async () => {
-    const { shownInMode, tierOfPanes } = await loadStore()
-
-    const shelf = [
-      { id: 'basic', panes: ['sessions', 'workspace'] },
-      { id: 'my-deck', panes: ['sessions', 'workspace', 'terminal'] }
-    ].map(layout => ({ ...layout, tier: tierOfPanes(layout.panes) }))
-
-    expect(shelf.filter(shownInMode('simple')).map(layout => layout.id)).toEqual(['basic'])
-    expect(shelf.filter(shownInMode('advanced')).map(layout => layout.id)).toEqual(['basic', 'my-deck'])
   })
 })

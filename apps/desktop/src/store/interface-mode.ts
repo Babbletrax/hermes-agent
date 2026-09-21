@@ -71,6 +71,7 @@ export interface ModeContext {
 
 export interface ModePolicy {
   fileBrowserOpen: boolean
+  hideCodeDiffs: boolean
   profileRailVisible: boolean
   reasoningCollapsedByDefault: boolean
   reviewOpen: boolean
@@ -89,6 +90,8 @@ type PolicyTable = { readonly [K in ModePolicyKey]?: PolicyEntry<K> }
 const SIMPLE_POLICY: PolicyTable = {
   // Hide-style panes rest closed; their keybinds and the agent still reveal them.
   fileBrowserOpen: false,
+  // Inline diffs are the review pane's job; the changed-files summary stays.
+  hideCodeDiffs: true,
   // Hide a door only when there is somewhere else to go: with the statusbar
   // (and its fallback profile dropdown) gone, a second profile makes the rail
   // the only way to switch, so it stays for multi-profile installs.
@@ -112,9 +115,7 @@ const POLICY: Record<InterfaceMode, PolicyTable> = {
 }
 
 /** Does this mode have an opinion about the surface at all? */
-export function modeShadows(key: ModePolicyKey, mode: InterfaceMode = $interfaceMode.get()): boolean {
-  return key in POLICY[mode]
-}
+const shadows = (key: ModePolicyKey, mode: InterfaceMode) => key in POLICY[mode]
 
 // The install facts a policy may consult. Fed by the app shell (profile roster),
 // kept off this module's imports so preference stores can depend on it without
@@ -172,7 +173,7 @@ export function modeBound<K extends ModePolicyKey>(
   $effective.subscribe(value => mirror(value as ModePolicy[K]))
 
   $bound.set = value => {
-    if (modeShadows(key)) {
+    if (shadows(key, $interfaceMode.get())) {
       $modeReveals.set({ ...$modeReveals.get(), [key]: value })
     } else {
       setPreference(value)
@@ -184,12 +185,13 @@ export function modeBound<K extends ModePolicyKey>(
 
 const shadowedCache = new Map<ModePolicyKey, ReadableAtom<boolean>>()
 
-/** Reactive `modeShadows` for Settings rows that explain who set their value. */
+/** Is the surface's value the mode's, not the user's? Settings rows read it to
+ *  say who set their value. Cached per key so `useStore` keeps one subscription. */
 export function $modeShadowed(key: ModePolicyKey): ReadableAtom<boolean> {
   let cached = shadowedCache.get(key)
 
   if (!cached) {
-    cached = computed($interfaceMode, mode => modeShadows(key, mode))
+    cached = computed($interfaceMode, mode => shadows(key, mode))
     shadowedCache.set(key, cached)
   }
 
@@ -209,18 +211,6 @@ const TIER_MODES: Record<InterfaceTier, readonly InterfaceMode[]> = {
 
 export interface Tiered {
   tier?: InterfaceTier
-}
-
-/**
- * Panes Simple rests closed (`terminalOpen`, `fileBrowserOpen`, `reviewOpen`
- * above). A layout that names one is a developer arrangement, so the layout
- * picker files it under the same tier — a template is judged by what it shows,
- * never by its id, and a user's saved decks sort the same way.
- */
-const ADVANCED_PANES: ReadonlySet<string> = new Set(['terminal', 'files', 'review'])
-
-export function tierOfPanes(paneIds: readonly string[]): InterfaceTier | undefined {
-  return paneIds.some(id => ADVANCED_PANES.has(id)) ? 'advanced' : undefined
 }
 
 /** Predicate for the filter a list already runs: `items.filter(shownInMode(mode))`. */

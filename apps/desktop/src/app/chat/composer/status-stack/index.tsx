@@ -109,7 +109,11 @@ export function ComposerStatusStack({ onSubmit, queue, sessionId }: ComposerStat
   const { t } = useI18n()
   const navigate = useNavigate()
   const storedSessionId = useStore(useSessionView().$storedId)
-  useSubagentSnapshot(sessionId)
+  const interfaceMode = useStore($interfaceMode)
+  const shown = shownInMode(interfaceMode)
+  // Hydrate always (delegate cards and session dots read the same store after
+  // a reload); keep POLLING only while the subagent group is on the shelf.
+  useSubagentSnapshot(sessionId, shown(GROUP_TIER.subagent))
   // Subscribe to THIS session's slice only. Both maps churn on other
   // sessions' activity (subagent ticks, background polls, preview updates in
   // any tile); a whole-map `useStore` re-rendered every mounted stack — one
@@ -136,18 +140,23 @@ export function ComposerStatusStack({ onSubmit, queue, sessionId }: ComposerStat
   const freeTierNotice = ownsFreeTierNotice && freeTierStripPending(freeTierStatus, freeTierRoute)
 
   const isStructuredSupported = controlEntry?.capability === 'supported'
-  const interfaceMode = useStore($interfaceMode)
 
-  const groups = useMemo(() => {
-    const shown = shownInMode(interfaceMode)
-    const raw = groupStatusItems(items).filter(group => shown(GROUP_TIER[group.type]))
+  // Every group, before the shelf decides what to SHOW: whether a dev server is
+  // running is a fact about the session (it keeps its localhost preview chip
+  // alive) even when Simple keeps the background group itself off screen.
+  const allGroups = useMemo(() => groupStatusItems(items), [items])
 
-    if (isStructuredSupported) {
-      return raw.filter(g => g.type !== 'goal')
-    }
+  const hasRunningBackground = allGroups.some(
+    g => g.type === 'background' && g.items.some(i => i.state === 'running')
+  )
 
-    return raw
-  }, [items, isStructuredSupported, interfaceMode])
+  const groups = useMemo(
+    () =>
+      allGroups.filter(
+        group => shownInMode(interfaceMode)(GROUP_TIER[group.type]) && (group.type !== 'goal' || !isStructuredSupported)
+      ),
+    [allGroups, isStructuredSupported, interfaceMode]
+  )
 
   // Seed from the registry on session open; event-driven refreshes (terminal /
   // process tool completions) live in use-message-stream. This must NOT reset
@@ -163,8 +172,6 @@ export function ComposerStatusStack({ onSubmit, queue, sessionId }: ComposerStat
       void refreshSessionControl(sessionId)
     }
   }, [sessionId])
-
-  const hasRunningBackground = groups.some(g => g.type === 'background' && g.items.some(i => i.state === 'running'))
 
   // Drop localhost previews once no dev server is left running — that's what made
   // dead `localhost:5174` chips stick around. On-disk file previews are kept.

@@ -418,6 +418,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
   const toolViewMode = useStore($toolViewMode)
   const toolViewShadowed = useStore($modeShadowed('toolViewMode'))
   const hideCodeDiffs = useStore($hideCodeDiffs)
+  const hideCodeDiffsShadowed = useStore($modeShadowed('hideCodeDiffs'))
   const hideThreadTimeline = useStore($hideThreadTimeline)
   const reasoningCollapsedByDefault = useStore($reasoningCollapsedByDefault)
   const reasoningCollapsedShadowed = useStore($modeShadowed('reasoningCollapsedByDefault'))
@@ -1079,7 +1080,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
                   value={hideCodeDiffs ? 'on' : 'off'}
                 />
               }
-              description={a.hideCodeDiffsDesc}
+              description={withModeNote(a.hideCodeDiffsDesc, hideCodeDiffsShadowed)}
               id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.hideCodeDiffs)}
               title={a.hideCodeDiffsTitle}
             />

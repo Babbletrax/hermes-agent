@@ -60,7 +60,7 @@ import { type KeybindContribution, KEYBINDS_AREA } from '@/lib/keybinds/actions'
 import { isOnboardingEnabled } from '@/lib/onboarding-enabled'
 import { TRANSCRIPT_DIRECTIVE_AREA, type TranscriptDirectiveContribution } from '@/lib/transcript-directives'
 import { setYoloEnabled } from '@/lib/yolo-session'
-import { $interfaceMode, modeShadows, setModeContext, toggleSimpleMode } from '@/store/interface-mode'
+import { $interfaceMode, $showsAdvancedChrome, setModeContext, toggleSimpleMode } from '@/store/interface-mode'
 import {
   $fileBrowserOpen,
   $panesFlipped,
@@ -625,19 +625,14 @@ bindPaneVisibility(
   () => openReview($reviewScopeCwd.get(), $reviewScopeTarget.get())
 )
 // ⌃` / statusbar toggle — the terminal COLLAPSES to a rail (tab stays), not
-// hides; PTYs stay alive while collapsed (see PersistentTerminal).
+// hides; PTYs stay alive while collapsed (see PersistentTerminal). The rail is
+// chrome, so where chrome is off (Simple) a closed terminal hides instead.
 bindToolPaneCollapse(
   'terminal',
   $terminalTakeover,
   () => setTerminalTakeover(false),
-  () => setTerminalTakeover(true)
-)
-// In Simple the terminal is HIDE-style instead: a collapsed rail is still
-// chrome. Same store, same ⌃` — only the resting shape differs. Advanced never
-// enters the hidden set, so the collapse model above is untouched there.
-bindPaneVisibility(
-  'terminal',
-  computed([$interfaceMode, $terminalTakeover], (mode, open) => open || !modeShadows('terminalOpen', mode))
+  () => setTerminalTakeover(true),
+  $showsAdvancedChrome
 )
 // Policies may consult the install: the profile rail stays in Simple when a
 // second profile makes it the only remaining way to switch.

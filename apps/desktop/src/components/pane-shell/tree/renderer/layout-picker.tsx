@@ -18,30 +18,35 @@ import { useContributions } from '@/contrib/react/use-contributions'
 import type { Contribution } from '@/contrib/types'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
-import {
-  $interfaceMode,
-  INTERFACE_MODES,
-  type InterfaceMode,
-  setInterfaceMode,
-  shownInMode,
-  tierOfPanes
-} from '@/store/interface-mode'
+import { $interfaceMode, INTERFACE_MODES, type InterfaceMode, setInterfaceMode, shownInMode } from '@/store/interface-mode'
 
 import type { LayoutNode } from '../model'
-import { allPaneIds, isLayoutNode } from '../model'
-import { applyLayoutPreset, deleteUserPreset, isUserPreset, LAYOUTS_AREA, saveCurrentLayoutAs } from '../presets'
+import { isLayoutNode } from '../model'
+import {
+  applyLayoutPreset,
+  deleteUserPreset,
+  isUserPreset,
+  layoutPresetResting,
+  layoutPresetTier,
+  LAYOUTS_AREA,
+  saveCurrentLayoutAs
+} from '../presets'
 import { $activePresetId } from '../store'
 import { $zoneEditorOpen } from '../zone-editor'
 
-/** Miniature render of a layout tree — the preset card thumbnail. */
-function TreeThumbnail({ node }: { node: LayoutNode }) {
+/** Miniature render of a layout tree — the preset card thumbnail. A zone whose
+ *  every pane the preset leaves resting is drawn as a ghost: the slot is there,
+ *  nothing is in it yet. */
+function TreeThumbnail({ node, resting }: { node: LayoutNode; resting: ReadonlySet<string> }) {
   if (node.type === 'group') {
+    const ghost = node.panes.every(id => resting.has(id))
+
     return (
       // currentColor-derived fill: light zones on dark themes, dark zones on
       // light — legible everywhere without leaning on the accent.
       <div
         className="min-h-0 min-w-0 flex-1 rounded-[2px]"
-        style={{ background: 'color-mix(in srgb, currentColor 16%, transparent)' }}
+        style={{ background: `color-mix(in srgb, currentColor ${ghost ? 5 : 16}%, transparent)` }}
       />
     )
   }
@@ -54,7 +59,7 @@ function TreeThumbnail({ node }: { node: LayoutNode }) {
           key={child.id}
           style={{ flex: `${node.weights[i]} ${node.weights[i]} 0px` }}
         >
-          <TreeThumbnail node={child} />
+          <TreeThumbnail node={child} resting={resting} />
         </div>
       ))}
     </div>
@@ -94,7 +99,7 @@ function PresetCard({ preset }: { preset: Contribution }) {
         type="button"
       >
         <div className="flex h-12 w-full">
-          <TreeThumbnail node={tree} />
+          <TreeThumbnail node={tree} resting={layoutPresetResting(preset.id)} />
         </div>
         <span
           className={cn('truncate text-[0.68rem] font-medium', active ? 'text-foreground' : 'text-muted-foreground/80')}
@@ -155,10 +160,10 @@ export function LayoutPicker() {
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // Simple curates the shelf too: a deck built around terminal, files or
-  // review is instrumentation, whichever of us saved it.
+  // Simple curates the shelf too: decks whose point is the tooling on screen
+  // carry an Advanced tier (layout-presets.ts); user decks always show.
   const shown = shownInMode(mode)
-  const layouts = presets.filter(p => isLayoutNode(p.data) && shown({ tier: tierOfPanes(allPaneIds(p.data)) }))
+  const layouts = presets.filter(p => isLayoutNode(p.data) && shown({ tier: layoutPresetTier(p.id) }))
   const templates = layouts.filter(p => !isUserPreset(p.id))
   const custom = layouts.filter(p => isUserPreset(p.id))
 

@@ -10,11 +10,51 @@
 
 import { registry } from '@/contrib/registry'
 import { readJson, writeJson, writeKey } from '@/lib/storage'
+import type { Tiered } from '@/store/interface-mode'
 
 import { isLayoutNode, type LayoutNode } from './model'
 import { $layoutTree, applyTree, markActivePreset } from './store'
 
 export const LAYOUTS_AREA = 'layouts'
+
+/**
+ * A bundled preset: the tree plus what the picker and the apply path need to
+ * know that the tree itself cannot say. `resting` names toggle-gated panes the
+ * preset places but leaves CLOSED — the arrangement is the same as a deck that
+ * shows them, only what's open differs (Basic vs Default). `tier` curates the
+ * Simple shelf. Both stay off `data`, which every consumer reads as a bare
+ * `LayoutNode`.
+ */
+export interface LayoutPresetSpec extends Tiered {
+  id: string
+  order: number
+  resting?: readonly string[]
+  title: string
+  tree: LayoutNode
+}
+
+const bundledSpecs = new Map<string, LayoutPresetSpec>()
+
+export function registerBundledPresets(specs: readonly LayoutPresetSpec[]) {
+  for (const spec of specs) {
+    bundledSpecs.set(spec.id, spec)
+  }
+
+  return registry.registerMany(
+    specs.map(({ id, order, title, tree }) => ({ id, area: LAYOUTS_AREA, title, order, data: tree }))
+  )
+}
+
+/** The Simple shelf keeps user decks and any bundled preset without a tier. */
+export const layoutPresetTier = (id: string) => bundledSpecs.get(id)?.tier
+
+const NO_RESTING: ReadonlySet<string> = new Set()
+
+export const layoutPresetResting = (id: string): ReadonlySet<string> => {
+  const resting = bundledSpecs.get(id)?.resting
+
+  return resting ? new Set(resting) : NO_RESTING
+}
 
 // v2: v1 presets predate semantic placement (see store.ts) — retire them.
 const USER_KEY = 'hermes.desktop.layoutPresets.v2'
@@ -105,7 +145,8 @@ export function deleteUserPreset(id: string) {
 
 export const isUserPreset = (id: string) => id in userPresets
 
-/** Apply a preset's tree (deep-cloned so live edits never mutate the preset). */
+/** Apply a preset's tree (deep-cloned so live edits never mutate the preset),
+ *  resting the panes its spec says to. */
 export function applyLayoutPreset(id: string, tree: LayoutNode) {
-  applyTree(structuredClone(tree), id)
+  applyTree(structuredClone(tree), id, bundledSpecs.get(id)?.resting)
 }

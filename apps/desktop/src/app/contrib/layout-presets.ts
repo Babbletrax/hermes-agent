@@ -1,5 +1,5 @@
 import { group, split } from '@/components/pane-shell/tree/model'
-import { registry } from '@/contrib/registry'
+import { registerBundledPresets } from '@/components/pane-shell/tree/presets'
 
 // ---------------------------------------------------------------------------
 // Layout presets — CHAT (main) always dominates.
@@ -40,9 +40,12 @@ export const DEFAULT_TREE = split(
 
 const FOCUS_TREE = split('row', [group(['sessions']), group(['workspace', 'files', 'review', 'terminal'])], [1, 4.6])
 
-// Basic is sessions and chat, nothing else: the first-run pick and the one
-// template Simple mode always has on its shelf.
-const BASIC_TREE = split('row', [group(['sessions']), group(['workspace'])], [1, 4.6])
+// Basic is the Default ARRANGEMENT with the tooling resting: sessions and chat
+// on screen, terminal / files / review closed but keeping their slots, so ⌃`
+// drops the terminal bottom-right and ⌘J opens the tree on the right. A tree
+// that simply omitted them was a lie — applying it adopts every missing pane
+// back in as workspace tabs, which is Focus.
+const BASIC_RESTING = ['terminal', 'files', 'review'] as const
 
 const TERMINAL_TREE = split(
   'column',
@@ -63,11 +66,13 @@ const QUAD_TREE = split(
 )
 
 export function registerLayoutPresets() {
-  return registry.registerMany([
-    { id: 'default', area: 'layouts', title: 'Default', order: 0, data: DEFAULT_TREE },
-    { id: 'basic', area: 'layouts', title: 'Basic', order: 5, data: BASIC_TREE },
-    { id: 'focus', area: 'layouts', title: 'Focus', order: 10, data: FOCUS_TREE },
-    { id: 'terminal-deck', area: 'layouts', title: 'Terminal deck', order: 20, data: TERMINAL_TREE },
-    { id: 'quad', area: 'layouts', title: 'Quad', order: 30, data: QUAD_TREE }
+  // Decks whose point is the tooling on screen are Advanced; Basic and Focus
+  // stay on the Simple shelf, where the tooling rests by policy anyway.
+  return registerBundledPresets([
+    { id: 'default', title: 'Default', order: 0, tree: DEFAULT_TREE, tier: 'advanced' },
+    { id: 'basic', title: 'Basic', order: 5, tree: DEFAULT_TREE, resting: BASIC_RESTING },
+    { id: 'focus', title: 'Focus', order: 10, tree: FOCUS_TREE },
+    { id: 'terminal-deck', title: 'Terminal deck', order: 20, tree: TERMINAL_TREE, tier: 'advanced' },
+    { id: 'quad', title: 'Quad', order: 30, tree: QUAD_TREE, tier: 'advanced' }
   ])
 }
