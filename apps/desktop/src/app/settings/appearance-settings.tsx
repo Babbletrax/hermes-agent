@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils'
 import { $backdrop, setBackdrop } from '@/store/backdrop'
 import { $composerPopoutGesturesEnabled, setComposerPopoutGesturesEnabled } from '@/store/composer-popout'
 import { $embedAllowed, $embedMode, clearEmbedAllowed, type EmbedMode, setEmbedMode } from '@/store/embed-consent'
-import { $introSplash, setIntroSplash } from '@/store/intro-splash'
 import {
   $interfaceMode,
   $modeShadowed,
@@ -25,6 +24,7 @@ import {
   type InterfaceMode,
   setInterfaceMode
 } from '@/store/interface-mode'
+import { $introSplash, setIntroSplash } from '@/store/intro-splash'
 import { notifyError } from '@/store/notifications'
 import { $activeGatewayProfile, $profiles, normalizeProfileKey } from '@/store/profile'
 import { $reactionsEnabled, setReactionsEnabled } from '@/store/reactions-enabled'
