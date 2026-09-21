@@ -44,7 +44,18 @@ import { registry } from '@/contrib/registry'
 import { discoverRuntimePlugins } from '@/contrib/runtime-loader'
 import { LocalizedTabTitle, translateNow } from '@/i18n'
 import { NEW_SESSION_TITLE, sessionTitle as storedSessionTitle } from '@/lib/chat-runtime'
-import { Download, FileText, LayoutDashboard, PanelBottom, PanelTop, Terminal, Upload, Users, Zap } from '@/lib/icons'
+import {
+  Download,
+  FileText,
+  LayoutDashboard,
+  PanelBottom,
+  PanelTop,
+  SlidersHorizontal,
+  Terminal,
+  Upload,
+  Users,
+  Zap
+} from '@/lib/icons'
 import { type KeybindContribution, KEYBINDS_AREA } from '@/lib/keybinds/actions'
 import { isOnboardingEnabled } from '@/lib/onboarding-enabled'
 import { TRANSCRIPT_DIRECTIVE_AREA, type TranscriptDirectiveContribution } from '@/lib/transcript-directives'
@@ -61,6 +72,8 @@ import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH
 } from '@/store/layout'
+import { $interfaceMode, modeShadows, setModeContext, toggleSimpleMode } from '@/store/interface-mode'
+import { $profiles } from '@/store/profile'
 import { $profileRailVisible } from '@/store/profile-rail-prefs'
 import { runExportProfileFlow, runImportProfileFlow } from '@/store/profile-share'
 import {
@@ -373,6 +386,17 @@ registry.registerMany([
     get: () => $profileRailVisible.get(),
     set: enabled => $profileRailVisible.set(enabled)
   }),
+  // Simple hides most of the chrome that would offer the way back, so ⌘K is a
+  // guaranteed door (alongside the layout editor and Settings → Appearance).
+  paletteToggle({
+    id: 'view.simpleMode',
+    label: 'Simple mode',
+    action: 'view.toggleSimpleMode',
+    icon: SlidersHorizontal,
+    keywords: ['simple', 'advanced', 'mode', 'interface', 'chrome', 'minimal', 'focus', 'distraction'],
+    get: () => $interfaceMode.get() === 'simple',
+    set: toggleSimpleMode
+  }),
   paletteToggle({
     id: 'view.toggleTabStrip',
     label: 'Toggle tabs',
@@ -608,6 +632,16 @@ bindToolPaneCollapse(
   () => setTerminalTakeover(false),
   () => setTerminalTakeover(true)
 )
+// In Simple the terminal is HIDE-style instead: a collapsed rail is still
+// chrome. Same store, same ⌃` — only the resting shape differs. Advanced never
+// enters the hidden set, so the collapse model above is untouched there.
+bindPaneVisibility(
+  'terminal',
+  computed([$interfaceMode, $terminalTakeover], (mode, open) => open || !modeShadows('terminalOpen', mode))
+)
+// Policies may consult the install: the profile rail stays in Simple when a
+// second profile makes it the only remaining way to switch.
+$profiles.subscribe(profiles => setModeContext({ profileCount: profiles.length }))
 // ⌘K door onto the same pane the keybind and statusbar pill flip — was a
 // one-way "open" row under Go to, so it never showed on/off and couldn't hide.
 // Reads the TREE like every other pane toggle: `$terminalTakeover` stays true

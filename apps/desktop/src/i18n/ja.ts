@@ -3323,6 +3323,20 @@ export const ja = defineLocale({
     }
   },
 
+  interfaceMode: {
+    title: 'インターフェースモード',
+    hint: '表示される内容が変わるだけで、Hermes にできることは変わりません。',
+    sessionNote: 'シンプルモードで設定されています。ここでの変更はこのセッション中のみ有効です。自分の設定にするには詳細モードに切り替えてください。',
+    simple: {
+      label: 'シンプル',
+      description: 'チャット、セッション、ToDo だけ。内部の仕組みは邪魔にならない場所に。'
+    },
+    advanced: {
+      label: '詳細',
+      description: 'すべてのペインと表示を、設定したとおりに。'
+    }
+  },
+
   zones: {
     showTabStrip: 'タブを表示',
     hideTabStrip: 'タブを隠す',

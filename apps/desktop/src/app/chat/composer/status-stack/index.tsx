@@ -30,6 +30,7 @@ import {
   stopBackgroundProcess
 } from '@/store/composer-status'
 import { $freeTierRoute, $freeTierStatus, freeTierStripPending } from '@/store/free-tier'
+import { $interfaceMode, shownInMode, type Tiered } from '@/store/interface-mode'
 import { $previewStatusBySession, dismissPreviewArtifact } from '@/store/preview-status'
 import { $sessionControlBySession, refreshSessionControl } from '@/store/session-control'
 import { $threadScrolledUpBySession } from '@/store/thread-scroll'
@@ -58,6 +59,15 @@ const GROUP_ICON: Record<StatusGroup['type'], string> = {
   todo: 'checklist',
   subagent: 'agent',
   background: 'server-process'
+}
+
+// Goals and todos are the plan the user is following; subagents and background
+// processes are how Hermes is executing it. Simple mode shows the plan only.
+const GROUP_TIER: Record<StatusGroup['type'], Tiered> = {
+  goal: {},
+  todo: {},
+  subagent: { tier: 'advanced' },
+  background: { tier: 'advanced' }
 }
 
 const groupLabel = (group: StatusGroup, s: Translations['statusStack']) => {
@@ -126,16 +136,18 @@ export function ComposerStatusStack({ onSubmit, queue, sessionId }: ComposerStat
   const freeTierNotice = ownsFreeTierNotice && freeTierStripPending(freeTierStatus, freeTierRoute)
 
   const isStructuredSupported = controlEntry?.capability === 'supported'
+  const interfaceMode = useStore($interfaceMode)
 
   const groups = useMemo(() => {
-    const raw = groupStatusItems(items)
+    const shown = shownInMode(interfaceMode)
+    const raw = groupStatusItems(items).filter(group => shown(GROUP_TIER[group.type]))
 
     if (isStructuredSupported) {
       return raw.filter(g => g.type !== 'goal')
     }
 
     return raw
-  }, [items, isStructuredSupported])
+  }, [items, isStructuredSupported, interfaceMode])
 
   // Seed from the registry on session open; event-driven refreshes (terminal /
   // process tool completions) live in use-message-stream. This must NOT reset

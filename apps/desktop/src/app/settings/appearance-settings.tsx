@@ -18,6 +18,13 @@ import { $backdrop, setBackdrop } from '@/store/backdrop'
 import { $composerPopoutGesturesEnabled, setComposerPopoutGesturesEnabled } from '@/store/composer-popout'
 import { $embedAllowed, $embedMode, clearEmbedAllowed, type EmbedMode, setEmbedMode } from '@/store/embed-consent'
 import { $introSplash, setIntroSplash } from '@/store/intro-splash'
+import {
+  $interfaceMode,
+  $modeShadowed,
+  INTERFACE_MODES,
+  type InterfaceMode,
+  setInterfaceMode
+} from '@/store/interface-mode'
 import { notifyError } from '@/store/notifications'
 import { $activeGatewayProfile, $profiles, normalizeProfileKey } from '@/store/profile'
 import { $reactionsEnabled, setReactionsEnabled } from '@/store/reactions-enabled'
@@ -409,9 +416,12 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
   const { t, isSavingLocale } = useI18n()
   const { themeName, mode, resolvedMode, availableThemes, setTheme, setMode } = useTheme()
   const toolViewMode = useStore($toolViewMode)
+  const toolViewShadowed = useStore($modeShadowed('toolViewMode'))
   const hideCodeDiffs = useStore($hideCodeDiffs)
   const hideThreadTimeline = useStore($hideThreadTimeline)
   const reasoningCollapsedByDefault = useStore($reasoningCollapsedByDefault)
+  const reasoningCollapsedShadowed = useStore($modeShadowed('reasoningCollapsedByDefault'))
+  const interfaceMode = useStore($interfaceMode)
   const sessionListDensity = useStore($sessionListDensity)
   const tabStripDefault = useStore($tabStripDefault)
   const titlebarAppActionsSide = useStore($titlebarAppActionsSide)
@@ -502,6 +512,16 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
     { id: 'comfortable', label: a.sessionDensityComfortable },
     { id: 'detailed', label: a.sessionDensityDetailed }
   ] as const satisfies readonly { id: SessionListDensity; label: string }[]
+
+  const interfaceModeOptions = INTERFACE_MODES.map(id => ({ id, label: t.interfaceMode[id].label })) satisfies readonly {
+    id: InterfaceMode
+    label: string
+  }[]
+
+  // A row whose value Simple mode currently decides says so where the
+  // preference text would otherwise promise a persistence it cannot deliver.
+  const withModeNote = (description: string, shadowed: boolean) =>
+    shadowed ? `${description} ${t.interfaceMode.sessionNote}` : description
 
   const tabStripOptions = [
     { id: 'auto', label: a.tabStripAuto },
@@ -674,6 +694,24 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
                 <TerminalFontSetting />
               </div>
             </>
+          )}
+
+          {show('window-layout') && (
+            <ListRow
+              action={
+                <SegmentedControl
+                  onChange={id => {
+                    triggerHaptic('selection')
+                    setInterfaceMode(id)
+                  }}
+                  options={interfaceModeOptions}
+                  value={interfaceMode}
+                />
+              }
+              description={t.interfaceMode.hint}
+              id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.interfaceMode)}
+              title={t.interfaceMode.title}
+            />
           )}
 
           {show('window-layout') && (
@@ -1020,7 +1058,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
                   value={toolViewMode}
                 />
               }
-              description={a.toolViewDesc}
+              description={withModeNote(a.toolViewDesc, toolViewShadowed)}
               id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.toolView)}
               title={a.toolViewTitle}
             />
@@ -1062,7 +1100,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
                   value={reasoningCollapsedByDefault ? 'on' : 'off'}
                 />
               }
-              description={a.reasoningCollapsedDesc}
+              description={withModeNote(a.reasoningCollapsedDesc, reasoningCollapsedShadowed)}
               title={a.reasoningCollapsedTitle}
             />
           )}

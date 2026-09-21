@@ -3279,6 +3279,20 @@ export const zhHant = defineLocale({
     }
   },
 
+  interfaceMode: {
+    title: '介面模式',
+    hint: '只改變顯示的內容，不改變 Hermes 的能力。',
+    sessionNote: '由簡潔模式設定。此處的變更僅在本次工作階段內生效；切換到進階模式即可保留為你的設定。',
+    simple: {
+      label: '簡潔',
+      description: '聊天、工作階段和你的待辦。內部機制不再礙事。'
+    },
+    advanced: {
+      label: '進階',
+      description: '所有面板與讀數，完全按你的設定顯示。'
+    }
+  },
+
   zones: {
     showTabStrip: '顯示分頁',
     hideTabStrip: '隱藏分頁',

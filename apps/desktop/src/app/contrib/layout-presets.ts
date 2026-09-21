@@ -1,6 +1,5 @@
 import { group, split } from '@/components/pane-shell/tree/model'
 import { registry } from '@/contrib/registry'
-import { isOnboardingEnabled } from '@/lib/onboarding-enabled'
 
 // ---------------------------------------------------------------------------
 // Layout presets — CHAT (main) always dominates.
@@ -41,8 +40,8 @@ export const DEFAULT_TREE = split(
 
 const FOCUS_TREE = split('row', [group(['sessions']), group(['workspace', 'files', 'review', 'terminal'])], [1, 4.6])
 
-// Basic starts with sessions and chat so first-run users need not learn
-// terminal, files or review panes before using Hermes.
+// Basic is sessions and chat, nothing else: the first-run pick and the one
+// template Simple mode always has on its shelf.
 const BASIC_TREE = split('row', [group(['sessions']), group(['workspace'])], [1, 4.6])
 
 const TERMINAL_TREE = split(
@@ -66,7 +65,7 @@ const QUAD_TREE = split(
 export function registerLayoutPresets() {
   return registry.registerMany([
     { id: 'default', area: 'layouts', title: 'Default', order: 0, data: DEFAULT_TREE },
-    ...(isOnboardingEnabled() ? [{ id: 'basic', area: 'layouts', title: 'Basic', order: 5, data: BASIC_TREE }] : []),
+    { id: 'basic', area: 'layouts', title: 'Basic', order: 5, data: BASIC_TREE },
     { id: 'focus', area: 'layouts', title: 'Focus', order: 10, data: FOCUS_TREE },
     { id: 'terminal-deck', area: 'layouts', title: 'Terminal deck', order: 20, data: TERMINAL_TREE },
     { id: 'quad', area: 'layouts', title: 'Quad', order: 30, data: QUAD_TREE }

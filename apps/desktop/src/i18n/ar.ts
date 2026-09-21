@@ -2850,6 +2850,19 @@ export const ar = defineLocale({
       fallbackTitle: 'معاينة'
     }
   },
+  interfaceMode: {
+    title: 'وضع الواجهة',
+    hint: 'يغيّر ما يظهر، وليس ما يستطيع Hermes فعله.',
+    sessionNote: 'يحدده الوضع البسيط. التغيير هنا يستمر لهذه الجلسة فقط؛ بدّل إلى المتقدم لجعله خيارك.',
+    simple: {
+      label: 'بسيط',
+      description: 'الدردشة والجلسات ومهامك. تبقى الأدوات الداخلية بعيدا عن الطريق.'
+    },
+    advanced: {
+      label: 'متقدم',
+      description: 'كل لوحة وكل قراءة، تماما كما أعددتها.'
+    }
+  },
   zones: {
     showTabStrip: 'إظهار علامات التبويب',
     hideTabStrip: 'إخفاء علامات التبويب',

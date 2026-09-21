@@ -2,7 +2,10 @@
  * Layout picker — the preset card grid inside the edit palette. Thumbnails
  * are a miniature render of each preset's layout tree; clicking a card
  * applies it, and "Save current arrangement" captures the live tree as a
- * user preset. The "New grid layout" button opens the zone editor.
+ * user preset. The "New grid layout" button opens the zone editor. Above the
+ * templates sits the interface mode — Simple / Advanced — because mode and
+ * arrangement are the two axes of "what does this window look like", and
+ * this palette is where the user comes to answer that.
  */
 
 import { useStore } from '@nanostores/react'
@@ -15,9 +18,17 @@ import { useContributions } from '@/contrib/react/use-contributions'
 import type { Contribution } from '@/contrib/types'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
+import {
+  $interfaceMode,
+  INTERFACE_MODES,
+  type InterfaceMode,
+  setInterfaceMode,
+  shownInMode,
+  tierOfPanes
+} from '@/store/interface-mode'
 
 import type { LayoutNode } from '../model'
-import { isLayoutNode } from '../model'
+import { allPaneIds, isLayoutNode } from '../model'
 import { applyLayoutPreset, deleteUserPreset, isUserPreset, LAYOUTS_AREA, saveCurrentLayoutAs } from '../presets'
 import { $activePresetId } from '../store'
 import { $zoneEditorOpen } from '../zone-editor'
@@ -108,14 +119,48 @@ function PresetCard({ preset }: { preset: Contribution }) {
   )
 }
 
+// No thumbnail on purpose: the grey-block miniature is the templates' language
+// for ARRANGEMENT, and a mode is not an arrangement — it is what rests on top
+// of whichever one is picked. Words carry it; the card chrome ties the rows.
+function ModeCard({ mode }: { mode: InterfaceMode }) {
+  const { t } = useI18n()
+  const current = useStore($interfaceMode)
+  const active = mode === current
+  const copy = t.interfaceMode[mode]
+
+  return (
+    <button
+      aria-pressed={active}
+      className={cn(
+        'flex w-full flex-col gap-0.5 rounded-lg border px-2.5 py-2 text-left transition-colors',
+        active
+          ? 'border-(--ui-accent) bg-(--ui-row-active-background)'
+          : 'border-(--ui-stroke-secondary) hover:border-(--ui-stroke-primary) hover:bg-(--ui-row-hover-background)'
+      )}
+      onClick={() => setInterfaceMode(mode)}
+      type="button"
+    >
+      <span className={cn('text-[0.68rem] font-medium', active ? 'text-foreground' : 'text-muted-foreground/80')}>
+        {copy.label}
+      </span>
+      <span className="text-[0.62rem] leading-snug text-(--ui-text-tertiary)">{copy.description}</span>
+    </button>
+  )
+}
+
 export function LayoutPicker() {
   const { t } = useI18n()
   const presets = useContributions(LAYOUTS_AREA)
+  const mode = useStore($interfaceMode)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const templates = presets.filter(p => !isUserPreset(p.id) && isLayoutNode(p.data))
-  const custom = presets.filter(p => isUserPreset(p.id) && isLayoutNode(p.data))
+  // Simple curates the shelf too: a deck built around terminal, files or
+  // review is instrumentation, whichever of us saved it.
+  const shown = shownInMode(mode)
+  const layouts = presets.filter(p => isLayoutNode(p.data) && shown({ tier: tierOfPanes(allPaneIds(p.data)) }))
+  const templates = layouts.filter(p => !isUserPreset(p.id))
+  const custom = layouts.filter(p => isUserPreset(p.id))
 
   const commitSave = () => {
     if (!name.trim()) {
@@ -129,6 +174,16 @@ export function LayoutPicker() {
 
   return (
     <div className="flex flex-col gap-4">
+      <section className="flex flex-col gap-2">
+        <PickerSectionLabel>{t.interfaceMode.title}</PickerSectionLabel>
+        <div className="grid grid-cols-2 gap-2">
+          {INTERFACE_MODES.map(mode => (
+            <ModeCard key={mode} mode={mode} />
+          ))}
+        </div>
+        <p className="text-[0.62rem] text-(--ui-text-quaternary)">{t.interfaceMode.hint}</p>
+      </section>
+
       <section className="flex flex-col gap-2">
         <PickerSectionLabel>{t.zones.templates}</PickerSectionLabel>
         <div className="grid grid-cols-4 gap-2">

@@ -11,6 +11,7 @@ import { matchesQuery } from '@/hooks/use-media-query'
 import { connectionScopedAtom } from '@/lib/connection-scoped'
 import { type Codec, Codecs, persistentAtom } from '@/lib/persisted'
 import { arraysEqual, insertUniqueId, readKey } from '@/lib/storage'
+import { modeBound } from '@/store/interface-mode'
 
 import { $paneStates, ensurePaneRegistered, setPaneOpen, setPaneWidthOverride } from './panes'
 import { $showAllProfiles, setShowAllProfiles } from './profile'
@@ -78,9 +79,16 @@ export const $sidebarOpen: ReadableAtom<boolean> = computed(
   states => states[CHAT_SIDEBAR_PANE_ID]?.open ?? true
 )
 
-export const $fileBrowserOpen: ReadableAtom<boolean> = computed(
+// The file tree's own toggle (⌘J), which doubles as the RIGHT side's collapse.
+// Simple mode rests it closed without touching the pane record; ⌘J still opens
+// it for the session.
+const $fileBrowserOpenPref: ReadableAtom<boolean> = computed(
   $paneStates,
   states => states[FILE_BROWSER_PANE_ID]?.open ?? false
+)
+
+export const $fileBrowserOpen = modeBound('fileBrowserOpen', $fileBrowserOpenPref, open =>
+  setPaneOpen(FILE_BROWSER_PANE_ID, open)
 )
 
 // Persisted so a relaunch reopens the same rail tab. Null when the rail has no
@@ -316,11 +324,15 @@ const $sidebarSortKey = persistentAtom<SidebarSortKey>(
   oneOf(SIDEBAR_SORT_KEYS, 'updated')
 )
 
-export const $sidebarRowMeta = persistentAtom<SidebarRowMeta[]>(
+// Simple mode rests the rows on what was said and when, without touching
+// this preference.
+const $sidebarRowMetaPref = persistentAtom<SidebarRowMeta[]>(
   SIDEBAR_ROW_META_STORAGE_KEY,
   SIDEBAR_DEFAULT_ROW_META,
   listOf(ROW_META)
 )
+
+export const $sidebarRowMeta = modeBound('sidebarRowMeta', $sidebarRowMetaPref, meta => $sidebarRowMetaPref.set(meta))
 
 /** Inbox style: render the flat list's session rows as three-line cards
  *  (project · age / title / model · size) instead of the one-line row. A
@@ -560,12 +572,12 @@ export function toggleFileBrowserOpen() {
   }
 
   const open = restoreMinimizedTreeSide('right') || !$fileBrowserOpen.get()
-  setPaneOpen(FILE_BROWSER_PANE_ID, open)
+  $fileBrowserOpen.set(open)
   setTreeSideCollapsed('right', !open)
 }
 
 export function setFileBrowserOpen(open: boolean) {
-  setPaneOpen(FILE_BROWSER_PANE_ID, open)
+  $fileBrowserOpen.set(open)
   setTreeSideCollapsed('right', !open)
 
   if (open) {
