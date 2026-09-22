@@ -65,6 +65,13 @@ class TestVerdicts:
         assert "hardline-deny" in out
         assert "system shutdown/reboot" in out
 
+    def test_disk_command_reports_one_time_owner_approval(self, isolated_approvals, capsys):
+        rc = at.approvals_test_command(_args(["mkfs.ext4", "/dev/sdb1"]))
+        out = capsys.readouterr().out
+        assert rc == 2
+        assert "ask-approval" in out
+        assert "destructive disk command" in out
+
     def test_dangerous_command_asks_with_exit_2(self, isolated_approvals, capsys):
         rc = at.approvals_test_command(_args(["rm", "-rf", "~/project/build"]))
         out = capsys.readouterr().out

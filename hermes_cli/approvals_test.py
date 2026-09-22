@@ -66,9 +66,23 @@ def evaluate_command(command: str, env_type: str = "local") -> dict:
                     "the runtime skips all command guards for it except approvals.deny"),
         )
 
-    # 2. Hardline blocklist — never bypassable, even under yolo.
+    # 2. Hardline blocklist, with per-command owner review for simple disk operations.
     is_hardline, hardline_desc = approval_detection.detect_hardline_command(command)
     if is_hardline:
+        if (hardline_desc in approval._REVIEWABLE_DISK_HARDLINE
+                and approval._single_disk_command(command, hardline_desc)):
+            is_sudo_guess, sudo_desc = approval_detection._check_sudo_stdin_guard(command)
+            if is_sudo_guess:
+                return result("hardline-deny", rule=sudo_desc, detail="sudo stdin guard (unconditional block)")
+            deny_pattern = approval_floors._match_user_deny_rule(command)
+            if deny_pattern is not None:
+                return result("user-deny", rule=deny_pattern,
+                              detail="matches a user-defined approvals.deny rule in config.yaml")
+            return result(
+                "ask-approval", rule=hardline_desc,
+                detail="destructive disk command requires explicit owner approval once; "
+                       "blocked if unattended, denied, or unanswered, including under yolo/mode=off",
+            )
         return result(
             "hardline-deny", rule=hardline_desc,
             detail="matches the hardline blocklist (never bypassable, "

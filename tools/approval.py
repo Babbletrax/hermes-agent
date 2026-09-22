@@ -31,7 +31,8 @@ from tools.approval_detection import (
     _approval_key_aliases, _check_sudo_stdin_guard, detect_dangerous_command, detect_hardline_command,
 )
 from tools.approval_floors import (
-    _command_matches_permanent_allowlist, _hardline_block_result, _match_user_deny_rule, _sudo_stdin_block_result,
+    _command_matches_permanent_allowlist, _hardline_block_result, _has_allowlist_shell_operator,
+    _match_user_deny_rule, _sudo_stdin_block_result,
     _user_deny_block_result,
 )
 from tools.approval_gateway_wait import _await_gateway_decision
@@ -794,7 +795,8 @@ def _human_decision(spec: _GateSpec, *, command: str, description: str,
                     pattern_key: str, pattern_keys: list[str], warnings: list[tuple],
                     session_key: str, approval_callback, is_cli: bool, is_gateway: bool,
                     is_ask: bool, smart: bool = False,
-                    permanent_capable: bool = True, pending_body=None) -> dict:
+                    permanent_capable: bool = True, pending_body=None,
+                    once_only: bool = False) -> dict:
     """Ask a human (after the optional guardian-LLM step) and turn the answer into the gate result.
 
     ``warnings`` are the ``(key, _, is_tirith)`` tuples :func:`_persist_choice` stores on
@@ -811,6 +813,10 @@ def _human_decision(spec: _GateSpec, *, command: str, description: str,
                                            session_key, human_present=is_cli or is_gateway or is_ask)
         if result is not None:
             return result
+    # BABBLE_HARDLINE_DISK_PROMPT: once_only reuses the smart-DENY menu (once/deny,
+    # nothing persists) without asking the guardian LLM.
+    if once_only:
+        smart_denied = True
     pending_body = pending_body() if pending_body else None
     allow_permanent = permanent_capable and not smart_denied
 
@@ -1049,13 +1055,54 @@ def _user_deny_block(command: str) -> dict | None:
     return _user_deny_block_result(deny_pattern)
 
 
-def _floor_block(command: str, *, sudo_guard: bool = False) -> dict | None:
+_REVIEWABLE_DISK_HARDLINE = frozenset({
+    "format filesystem (mkfs)", "dd to raw block device", "redirect to raw block device",
+})
+
+
+def _single_disk_command(command: str, description: str) -> bool:
+    """Allow one simple disk command through to an owner prompt, never a shell program.
+
+    A redirect needs its single ``>`` operator; all other shell operators, expansions,
+    substitutions and command separators are excluded by the shared quote-aware check.
+    """
+    if description == "redirect to raw block device":
+        if command.count(">") != 1:
+            return False
+        command = command.replace(">", " ", 1)
+    return not _has_allowlist_shell_operator(command)
+
+
+def _floor_block(command: str, *, sudo_guard: bool = False, approval_callback=None) -> dict | None:
     """Unconditional floors, BEFORE yolo / mode=off / cron approve-mode so no
     session-level setting can bypass them: hardline catastrophic commands,
     password-piping to ``sudo -S`` with no SUDO_PASSWORD configured (full guard
     only), and the user's own approvals.deny rules ("never, even under yolo")."""
     is_hardline, hardline_desc = detect_hardline_command(command)
     if is_hardline:
+        # One approval must cover exactly one shell command. Otherwise a reviewed mkfs could
+        # carry an unreviewed reboot, root wipe, or substitution in the same terminal call.
+        if hardline_desc in _REVIEWABLE_DISK_HARDLINE and _single_disk_command(command, hardline_desc):
+            denied = _user_deny_block(command)
+            if denied is not None:
+                return denied
+            if sudo_guard:
+                is_sudo_guess, sudo_guess_desc = _check_sudo_stdin_guard(command)
+                if is_sudo_guess:
+                    return _sudo_stdin_block_result(sudo_guess_desc)
+            approval_callback, is_cli, is_gateway, is_ask = _presence(approval_callback)
+            if is_cli or is_gateway or is_ask:
+                session_key = get_current_session_key()
+                pattern_key = f"hardline_disk:{hashlib.sha256(command.encode()).hexdigest()}"
+                return _human_decision(
+                    _COMMAND_GATE, command=command,
+                    description=f"DESTRUCTIVE DISK OPERATION ({hardline_desc}). This command can erase data. "
+                                "Review the exact device and command before approving once.",
+                    pattern_key=pattern_key, pattern_keys=[pattern_key],
+                    warnings=[(pattern_key, hardline_desc, False)], session_key=session_key,
+                    approval_callback=approval_callback, is_cli=is_cli, is_gateway=is_gateway,
+                    is_ask=is_ask, once_only=True,
+                )
         logger.warning("Hardline block: %s (command: %s)", hardline_desc, command[:200])
         return _hardline_block_result(hardline_desc, command)
     if sudo_guard:
@@ -1074,7 +1121,7 @@ def check_dangerous_command(command: str, env_type: str,
     Returns ``{"approved": True/False, "message": str or None, ...}``."""
     if _should_skip_container_guards(env_type, has_host_access=has_host_access):
         return _user_deny_block(command) or _approved()
-    blocked = _floor_block(command)
+    blocked = _floor_block(command, approval_callback=approval_callback)
     if blocked is not None:
         return blocked
     if _yolo_active():
@@ -1166,7 +1213,7 @@ def check_all_command_guards(command: str, env_type: str,
     if _should_skip_container_guards(env_type, has_host_access=has_host_access):
         return _user_deny_block(command) or _approved()
 
-    blocked = _floor_block(command, sudo_guard=True)
+    blocked = _floor_block(command, sudo_guard=True, approval_callback=approval_callback)
     if blocked is not None:
         return blocked
 

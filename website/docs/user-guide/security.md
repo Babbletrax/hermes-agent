@@ -130,27 +130,28 @@ A tool rejection means the command did not execute through that tool call. An
 assistant declining to issue a call is a separate model decision; changing models
 does not change the terminal guard's policy.
 
-### Hardline Blocklist (Always-On Floor)
+### Hardline Blocklist and Disk Approval
 
-Some commands are so catastrophic — irreversible filesystem wipes, fork bombs, direct block-device writes — that Hermes refuses to run them **regardless** of:
+Some commands are so catastrophic — irreversible filesystem wipes, fork bombs, and system shutdown — that Hermes refuses to run them **regardless** of:
 
 - `--yolo` / `/yolo` toggled on
 - `approvals.mode: off`
 - Cron jobs running in headless `approve` mode
 - User explicitly clicking "allow always"
 
-The blocklist is the floor below `--yolo`. It trips **before** the approval layer even sees the command, and there's no override flag. Patterns currently covered (not exhaustive; kept in sync with `tools/approval.py::UNRECOVERABLE_BLOCKLIST`):
+The blocklist is the floor below `--yolo`. Three disk-operation classes instead require explicit approval from an interactive owner for **each command**: `mkfs` filesystem formatting, `dd` writes to raw block devices, and shell redirects to raw block devices. The prompt shows the exact command and warns that it can erase data. Approval applies only to that command; it cannot be saved for the session or permanently. This prompt still appears in yolo mode or with `approvals.mode: off`. In unattended runs, or if the prompt is denied or unanswered, the command remains blocked. Compound commands and shell substitutions are not eligible for disk approval.
+
+Other hardline patterns remain unconditional blocks. Patterns currently covered include:
 
 | Pattern | Why it's hardline |
 |---|---|
 | `rm -rf /` and obvious variants | Wipes the filesystem root |
 | `rm -rf --no-preserve-root /` | The explicit "yes I mean root" variant |
 | `:(){ :\|:& };:` (bash fork bomb) | Pegs the host until reboot |
-| `mkfs.*` on a mounted root device | Formats the live system |
-| `dd if=/dev/zero of=/dev/sd*` | Zeroes a physical disk |
-| Piping untrusted URLs to `sh` at the rootfs top level | Remote-code-execution attack vector too broad to approve |
+| `mkfs.*` | Formats a filesystem; requires one-command disk approval |
+| `dd ... of=/dev/sd*` and raw-device redirects | Overwrites a disk; requires one-command disk approval |
 
-If you hit the blocklist, the tool call returns an explanatory error to the agent and nothing runs. If a legitimate workflow needs one of these commands (you're the operator of a wipe-and-reinstall pipeline, for example), run it outside the agent.
+If an unconditional block matches, the tool call returns an explanatory error and nothing runs. The disk approval path is available only for the three classes above.
 
 The floor also fails closed on a command whose shell quoting cannot be parsed (`grep 'unterminated`): the error says `malformed executable payload`. Quoting is judged on the command exactly as written, so shell-valid escapes inside a quoted pattern (`grep -o "[^\"]*" file`) are not malformed, and an escaped quote before a separator (`echo "a\"b"; reboot`) does not hide the command that follows it.
 
