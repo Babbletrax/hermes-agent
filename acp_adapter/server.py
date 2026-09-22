@@ -45,6 +45,21 @@ logger = logging.getLogger(__name__)
 # Runs the synchronous AIAgent off the event loop.
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="acp-agent")
 
+
+def shutdown_acp_runtime() -> None:
+    """Stop the ACP agent thread pool without waiting on wedged network workers.
+
+    Stdio EOF / Writer closing the pipe must not reach ``Py_FinalizeEx`` while a
+    pydantic/httpx worker still takes the GIL (CPython aborts that). Callers should
+    ``os._exit`` after this instead of falling off ``main()``.
+    """
+    try:
+        _executor.shutdown(wait=False, cancel_futures=True)
+    except TypeError:
+        _executor.shutdown(wait=False)
+    except Exception:
+        logger.debug("ACP executor shutdown failed", exc_info=True)
+
 # ListSessionsRequest has no client-side limit; clients paginate via `cursor`/`next_cursor`.
 _LIST_SESSIONS_PAGE_SIZE = 50
 
@@ -911,10 +926,23 @@ class HermesACPAgent(SlashCommandsMixin, acp.Agent):
             cbs.reasoning_cb = make_thinking_cb(conn, session_id, loop, state.message_ids)
             cbs.step_cb = make_step_cb(conn, session_id, loop, tool_call_ids, tool_call_meta, turn_state)
             message_cb = make_message_cb(conn, session_id, loop, state.message_ids)
+            try:
+                from agent.think_scrubber import StreamingThinkScrubber
 
-            def stream_delta_cb(text: str) -> None:
-                cbs.streamed = cbs.streamed or bool(text)
-                message_cb(text)
+                think_scrubber = StreamingThinkScrubber()
+            except Exception:
+                think_scrubber = None
+
+            def stream_delta_cb(text: str | None) -> None:
+                if text is None:
+                    message_cb(None)
+                    return
+                visible = text
+                if think_scrubber is not None and isinstance(text, str):
+                    visible = think_scrubber.feed(text)
+                if visible:
+                    cbs.streamed = True
+                    message_cb(visible)
 
             cbs.stream_delta_cb = stream_delta_cb
             # Closes the synthetic permission-request bubble once the user has answered.

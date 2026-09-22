@@ -43,6 +43,24 @@ def test_main_skips_configured_mcp_discovery_when_requested(monkeypatch):
     assert discovery_calls == []
 
 
+def test_main_shuts_down_runtime_after_run(monkeypatch):
+    calls = []
+
+    async def fake_run_agent(agent, **kwargs):
+        pass
+
+    monkeypatch.setattr(entry, "_setup_logging", lambda: None)
+    monkeypatch.setattr(entry, "_load_env", lambda: None)
+    monkeypatch.setattr(acp, "run_agent", fake_run_agent)
+    monkeypatch.setattr("acp_adapter.server.shutdown_acp_runtime", lambda: calls.append("shutdown"))
+    monkeypatch.setattr(entry, "_exit_without_finalize", lambda code: calls.append(("exit", code)))
+
+    entry.main([])
+
+    assert calls == ["shutdown", ("exit", 0)]
+
+
+
 
 
 

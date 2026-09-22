@@ -102,9 +102,16 @@ def _register_task_cwd(task_id: str, cwd: str) -> None:
 
 def _expand_acp_enabled_toolsets(toolsets: List[str] | None = None,
                                  mcp_server_names: List[str] | None = None) -> List[str]:
-    """Return ACP toolsets plus explicit MCP server toolsets for this session."""
+    """Return ACP toolsets plus explicit MCP server toolsets for this session.
+
+    ``HERMES_ACP_EXTRA_TOOLSETS`` (comma-separated) appends plugin toolsets such
+    as mermaid/drawio so Scribe/Writer ACP can call generate_diagram. ACP otherwise
+    only loads hermes-acp, which does not include plugin toolsets.
+    """
     names = [n for n in (toolsets or ["hermes-acp"]) if n]
     names += [f"mcp-{s}" for s in (mcp_server_names or []) if s]
+    extra = os.environ.get("HERMES_ACP_EXTRA_TOOLSETS") or ""
+    names += [part.strip() for part in extra.split(",") if part.strip()]
     return list(dict.fromkeys(names))
 
 

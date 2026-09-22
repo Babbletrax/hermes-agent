@@ -214,13 +214,39 @@ def main(argv: list[str] | None = None) -> None:
             logger.debug("MCP tool discovery failed at ACP startup", exc_info=True)
 
     agent = HermesACPAgent()
+    exit_code = 0
     try:
         asyncio.run(acp.run_agent(agent, use_unstable_protocol=True))
     except KeyboardInterrupt:
         logger.info("Shutting down (KeyboardInterrupt)")
     except Exception:
         logger.exception("ACP agent crashed")
-        sys.exit(1)
+        exit_code = 1
+    finally:
+        try:
+            from acp_adapter.server import shutdown_acp_runtime
+
+            shutdown_acp_runtime()
+        except Exception:
+            logger.debug("ACP runtime shutdown failed", exc_info=True)
+        _exit_without_finalize(exit_code)
+
+
+def _exit_without_finalize(code: int) -> None:
+    """Leave without ``Py_FinalizeEx``.
+
+    ACP network workers (pydantic DNS, httpx) still take the GIL after stdin EOF.
+    Finalizing the interpreter then aborts the process (take_gil during teardown).
+    """
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        if code:
+            raise SystemExit(code)
+        return
+    try:
+        logging.shutdown()
+    except Exception:
+        pass
+    os._exit(code)
 
 
 if __name__ == "__main__":
