@@ -216,11 +216,9 @@ registry.registerMany([
     area: 'panes',
     // Register-time sample; the tab renders `tabTitle` (see sessions).
     title: translateNow('sidebar.terminal'),
-    // revealOnPreset: choosing a layout that places the terminal (e.g.
-    // "Terminal deck") turns takeover on so the zone actually shows, instead of
-    // staying collapsed behind the ⌃` toggle. height sizes the fixed track (a
-    // single-pane zone declaring a height is a fixed track — the preset weight
-    // is moot): a short deck, not a third of the window.
+    // height sizes the fixed track (a single-pane zone declaring a height is a
+    // fixed track — the preset weight is moot): a short deck, not a third of
+    // the window.
     //
     // NO minHeight: a tool panel drags all the way down to its collapsed
     // header (the sash floors it at COLLAPSED_ZONE_PX and folds the zone to
@@ -229,7 +227,6 @@ registry.registerMany([
       placement: 'bottom',
       height: '20vh',
       maxHeight: '80vh',
-      revealOnPreset: true,
       lifecycleKeepAlive: true,
       tabTitle: () => <LocalizedTabTitle select={t => t.sidebar.terminal} />,
       tabTitleText: () => translateNow('sidebar.terminal')
@@ -803,10 +800,16 @@ registry.register(
 // flips back) — but only while the pane actually lives in that root side
 // column. Dragged next to main, a side collapse can't hide it (the collapse
 // skips main-bearing children), so Close falls back to dismissal there —
-// otherwise ⌘W/Close silently no-op.
+// otherwise ⌘W/Close silently no-op. The sessions opener is the mirror: a
+// preset that places the sidebar shows it, ⌘B truthful.
 registerPaneCloser('sessions', () =>
   paneRootSide('sessions') === 'left' ? setSidebarOpen(false) : dismissTreePane('sessions')
 )
+registerPaneOpener('sessions', () => {
+  if (paneRootSide('sessions') === 'left') {
+    setSidebarOpen(true)
+  }
+})
 registerPaneCloser('files', () =>
   paneRootSide('files') === 'right' ? setFileBrowserOpen(false) : dismissTreePane('files')
 )

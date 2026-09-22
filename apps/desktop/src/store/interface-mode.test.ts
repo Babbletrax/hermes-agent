@@ -93,6 +93,21 @@ describe('modeBound resolver', () => {
     expect($bound.get()).toBe(false)
   })
 
+  it('drops a shadowed write made as layout intent: the mode decides what rests, the preference stays', async () => {
+    const { asLayoutIntent, modeBound, setInterfaceMode } = await loadStore()
+    const $pref = atom(false)
+    const $bound = modeBound('terminalOpen', $pref, value => $pref.set(value))
+
+    setInterfaceMode('simple')
+    asLayoutIntent(() => $bound.set(true))
+    expect($bound.get()).toBe(false)
+    expect($pref.get()).toBe(false)
+
+    setInterfaceMode('advanced')
+    asLayoutIntent(() => $bound.set(true))
+    expect($pref.get()).toBe(true)
+  })
+
   it('leaves a surface Simple has no opinion on alone', async () => {
     const { modeBound, setInterfaceMode, $modeShadowed } = await loadStore()
 

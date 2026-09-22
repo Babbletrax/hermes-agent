@@ -173,14 +173,31 @@ export function modeBound<K extends ModePolicyKey>(
   $effective.subscribe(value => mirror(value as ModePolicy[K]))
 
   $bound.set = value => {
-    if (shadows(key, $interfaceMode.get())) {
-      $modeReveals.set({ ...$modeReveals.get(), [key]: value })
-    } else {
+    if (!shadows(key, $interfaceMode.get())) {
       setPreference(value)
+    } else if (!layoutIntent) {
+      $modeReveals.set({ ...$modeReveals.get(), [key]: value })
     }
   }
 
   return $bound
+}
+
+// A layout pick opens and closes the panes it places through these same
+// setters. That is LAYOUT intent, not "show me this": while a surface is
+// shadowed the mode already decides what rests, so inside `asLayoutIntent`
+// a shadowed write is dropped rather than turned into a session reveal — and
+// Simple still never writes a preference.
+let layoutIntent = false
+
+export function asLayoutIntent(run: () => void) {
+  layoutIntent = true
+
+  try {
+    run()
+  } finally {
+    layoutIntent = false
+  }
 }
 
 const shadowedCache = new Map<ModePolicyKey, ReadableAtom<boolean>>()

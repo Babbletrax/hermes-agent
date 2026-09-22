@@ -654,6 +654,17 @@ export function TreeSplit({
     ? allFixedAbsorberIndex(growable, i => (horizontal ? tracks[i].sizing?.maxWidth : tracks[i].sizing?.maxHeight))
     : -1
 
+  // A capped all-fixed run leaves slack. When every track left standing is
+  // END-placed chrome (a bottom terminal whose column-mates ⌘J folded away),
+  // the slack goes BEFORE it so the zone keeps hugging its edge — a terminal
+  // deck belongs at the bottom of its column, not floating at the top.
+  const endPlacement = horizontal ? 'right' : 'bottom'
+
+  const anchorsEnd =
+    allFixed &&
+    absorberIndex < 0 &&
+    growable.every(i => allPaneIds(tracks[i].child).every(id => paneChrome(paneFor(id)).placement === endPlacement))
+
   // Weights are RATIOS, but CSS flex-grow is absolute: a run whose grows sum
   // below 1 fills only that fraction of the leftover (normalize's flatten
   // scales weights into the parent slot — a dock-split nested into an
@@ -688,7 +699,7 @@ export function TreeSplit({
 
   return (
     <div
-      className={cn('flex min-h-0 min-w-0 flex-1', horizontal ? 'flex-row' : 'flex-col')}
+      className={cn('flex min-h-0 min-w-0 flex-1', horizontal ? 'flex-row' : 'flex-col', anchorsEnd && 'justify-end')}
       data-tree-split={node.id}
       ref={containerRef}
     >

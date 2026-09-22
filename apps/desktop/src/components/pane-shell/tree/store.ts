@@ -376,8 +376,8 @@ export function registerPaneCloser(paneId: string, close?: () => void) {
  * Route a pane's "show it" intent through the app store that owns its
  * visibility — the mirror of `registerPaneCloser`, so a preset can reveal a
  * toggle-gated pane (e.g. the terminal, whose visibility ⌃`/`$terminalTakeover`
- * owns) while the toggle stays truthful. Only panes that opt in via
- * `data.revealOnPreset` are opened on preset apply.
+ * owns) while the toggle stays truthful. Applying a preset opens every pane it
+ * places, except the ones it places resting.
  */
 export function registerPaneOpener(paneId: string, open: () => void) {
   paneOpeners[paneId] = open
@@ -1651,14 +1651,11 @@ export function applyTree(tree: LayoutNode, presetId: string, resting: readonly 
   commit(previous ? adoptMissingPanes(tree, previous) : tree)
   markActivePreset(presetId)
 
-  // Picking a named layout is an intent to SEE its panes. Toggle-gated panes
-  // (the terminal, whose visibility a store owns) would otherwise stay
-  // collapsed after the tree changes — so reveal the ones that opt in through
-  // their owning store, keeping the ⌃`/toggle state truthful. A preset that
-  // places a pane RESTING says the opposite and closes it through the same
-  // store. Iterate the preset's DECLARED panes (not the adopted result) so
-  // only panes a preset explicitly places are touched.
-  const panes = registry.getArea('panes')
+  // A preset says what is ON SCREEN. Every toggle-gated pane it places opens
+  // through its owning store (so ⌃`/⌘J/⌘G stay truthful), except the ones it
+  // places RESTING, which close through the same store — Basic and Default
+  // share one arrangement and differ only here. Iterate the preset's DECLARED
+  // panes (not the adopted result) so only panes it explicitly places move.
   const rests = new Set(resting)
 
   for (const paneId of allPaneIds(tree)) {
@@ -1672,13 +1669,7 @@ export function applyTree(tree: LayoutNode, presetId: string, resting: readonly 
       if (isCollapsePane(paneId)) {
         setPaneCollapsed(paneId, true)
       }
-
-      continue
-    }
-
-    const data = panes.find(c => c.id === paneId)?.data as { revealOnPreset?: boolean } | undefined
-
-    if (data?.revealOnPreset) {
+    } else {
       paneOpeners[paneId]?.()
     }
   }

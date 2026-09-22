@@ -43,10 +43,15 @@ function TreeThumbnail({ node, resting }: { node: LayoutNode; resting: ReadonlyS
 
     return (
       // currentColor-derived fill: light zones on dark themes, dark zones on
-      // light — legible everywhere without leaning on the accent.
+      // light — legible everywhere without leaning on the accent. A ghost is
+      // an outlined empty slot, not a fainter block.
       <div
         className="min-h-0 min-w-0 flex-1 rounded-[2px]"
-        style={{ background: `color-mix(in srgb, currentColor ${ghost ? 5 : 16}%, transparent)` }}
+        style={
+          ghost
+            ? { border: '1px dashed color-mix(in srgb, currentColor 30%, transparent)' }
+            : { background: 'color-mix(in srgb, currentColor 16%, transparent)' }
+        }
       />
     )
   }

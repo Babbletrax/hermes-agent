@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { registry } from '@/contrib/registry'
 
 import { allPaneIds, findGroupOfPane, group, split } from './model'
-import { applyLayoutPreset, layoutPresetTier, registerBundledPresets } from './presets'
+import { applyLayoutPreset, deleteUserPreset, layoutPresetTier, registerBundledPresets, saveCurrentLayoutAs } from './presets'
 import { $dismissedPanes, $hiddenTreePanes, $layoutTree, bindPaneVisibility, bindToolPaneCollapse } from './store'
 
 // Basic used to be `sessions | workspace`, and picking it produced Focus:
@@ -65,10 +65,10 @@ describe('resting presets', () => {
     expect([...$hiddenTreePanes.get()].sort()).toEqual(['files', 'review'])
     expect(findGroupOfPane($layoutTree.get()!, 'terminal')?.minimized).toBe(true)
 
-    // The deck that shows the tooling re-opens what opts in (`revealOnPreset`).
+    // The deck that shows the tooling opens EVERYTHING it places.
     applyLayoutPreset('shows', ARRANGEMENT)
 
-    expect($terminal.get()).toBe(true)
+    expect([$terminal.get(), $files.get(), $review.get()]).toEqual([true, true, true])
     expect(allPaneIds($layoutTree.get()!).sort()).toEqual(allPaneIds(ARRANGEMENT).sort())
 
     // Resting again with the store ALREADY closed still collapses the rail:
@@ -77,6 +77,28 @@ describe('resting presets', () => {
     applyLayoutPreset('rests', ARRANGEMENT)
 
     expect(findGroupOfPane($layoutTree.get()!, 'terminal')?.minimized).toBe(true)
+  })
+
+  it('a deck saved from the live layout remembers what was closed', () => {
+    const $terminal = atom(false)
+    const $files = atom(true)
+
+    bindToolPaneCollapse('terminal', $terminal, () => $terminal.set(false), () => $terminal.set(true))
+    bindPaneVisibility('files', $files, () => $files.set(false), () => $files.set(true))
+
+    disposers.push(registerBundledPresets([{ id: 'seed', title: 'Seed', order: 0, tree: ARRANGEMENT, resting: ['terminal'] }]))
+    applyLayoutPreset('seed', ARRANGEMENT)
+    saveCurrentLayoutAs('Mine')
+
+    // Open the terminal by hand, then re-apply the saved deck: it rests again.
+    $terminal.set(true)
+    applyLayoutPreset('user-mine', $layoutTree.get()!)
+
+    expect($terminal.get()).toBe(false)
+    expect($files.get()).toBe(true)
+    expect(layoutPresetTier('user-mine')).toBeUndefined()
+
+    deleteUserPreset('user-mine')
   })
 
   it('a reveal on apply never steals the tab the preset put first', () => {
