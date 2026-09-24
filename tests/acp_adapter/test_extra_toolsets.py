@@ -8,6 +8,11 @@ def test_extra_toolsets_off_by_default(monkeypatch):
     assert _expand_acp_enabled_toolsets() == ["hermes-acp"]
 
 
+def test_empty_toolsets_list_does_not_inject_default(monkeypatch):
+    monkeypatch.delenv("HERMES_ACP_EXTRA_TOOLSETS", raising=False)
+    assert _expand_acp_enabled_toolsets([]) == []
+
+
 def test_extra_toolsets_on_appends_unique_names(monkeypatch):
     monkeypatch.setenv("HERMES_ACP_EXTRA_TOOLSETS", "mermaid, drawio, mermaid")
     assert _expand_acp_enabled_toolsets(["hermes-acp"], ["writer"]) == [

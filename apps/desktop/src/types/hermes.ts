@@ -469,6 +469,7 @@ export interface HermesConfig {
     auto_tts?: boolean
     stop_phrases?: unknown
     thinking_sound?: unknown
+    barge_in_threshold_multiplier?: unknown
   }
 }
 
@@ -496,6 +497,8 @@ export interface PaginatedSessions {
   /** Per-profile read failures from the cross-profile aggregator (e.g. a locked
    *  or corrupt state.db). Present only on `/api/profiles/sessions`. */
   errors?: Array<{ profile: string; error: string }>
+  /** `{profile: 'corrupt'}` for each listed profile whose state.db is structurally damaged. */
+  storage?: Record<string, 'corrupt'>
 }
 
 export interface SessionCreateResponse {
@@ -633,6 +636,7 @@ export interface SessionMessage {
   display_kind?:
     | 'async_delegation_complete'
     | 'auto_continue'
+    | 'failed_turn'
     | 'hidden'
     | 'model_switch'
     | 'personality_switch'
@@ -1035,6 +1039,8 @@ export interface ProfileInfo {
   name: string
   path: string
   provider: null | string
+  /** Backend-assigned role from profile.yaml; `setup` marks the onboarding guide's profile. */
+  role?: 'setup' | null
   skill_count: number
 }
 
@@ -1657,6 +1663,7 @@ export interface McpServerTestResponse {
 export interface McpCatalogEntry {
   name: string
   description: string
+  connector_slug?: string | null
   source: string
   transport: string
   auth_type: string
