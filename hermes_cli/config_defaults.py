@@ -1667,6 +1667,9 @@ DEFAULT_CONFIG = {
         # / Cancel via tools.slash_confirm; native buttons on Telegram/ Discord/Slack). "Always
         # Approve" → false. HERMES_TUI_NO_CONFIRM=1 skips the TUI modal.
         "destructive_slash_confirm": True,
+        # Fork: simple mkfs / dd-to-disk / raw-device redirects prompt the owner once instead of
+        # the upstream hardline block. false (or HERMES_DISK_OWNER_REVIEW=0) restores never-run.
+        "disk_owner_review": True,
     },
     # Permanently allowed dangerous command patterns (added via "always" approval).
     "command_allowlist": [],

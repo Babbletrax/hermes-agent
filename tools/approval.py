@@ -1060,6 +1060,24 @@ _REVIEWABLE_DISK_HARDLINE = frozenset({
 })
 
 
+def _disk_owner_review_enabled() -> bool:
+    """Fork switch: interactive owner review for simple disk hardline commands.
+
+    Default on. ``HERMES_DISK_OWNER_REVIEW=0`` or ``approvals.disk_owner_review: false``
+    restores upstream hardline (never prompts, including under yolo).
+    """
+    raw = os.getenv("HERMES_DISK_OWNER_REVIEW")
+    if raw is not None and raw.strip() != "":
+        return is_truthy_value(raw)
+    try:
+        value = approval_context._get_approval_config().get("disk_owner_review", True)
+    except Exception:
+        return True
+    if isinstance(value, str):
+        return is_truthy_value(value, default=True)
+    return True if value is None else bool(value)
+
+
 def _single_disk_command(command: str, description: str) -> bool:
     """Allow one simple disk command through to an owner prompt, never a shell program.
 
@@ -1082,7 +1100,8 @@ def _floor_block(command: str, *, sudo_guard: bool = False, approval_callback=No
     if is_hardline:
         # One approval must cover exactly one shell command. Otherwise a reviewed mkfs could
         # carry an unreviewed reboot, root wipe, or substitution in the same terminal call.
-        if hardline_desc in _REVIEWABLE_DISK_HARDLINE and _single_disk_command(command, hardline_desc):
+        if (hardline_desc in _REVIEWABLE_DISK_HARDLINE and _single_disk_command(command, hardline_desc)
+                and _disk_owner_review_enabled()):
             denied = _user_deny_block(command)
             if denied is not None:
                 return denied

@@ -1,4 +1,8 @@
-"""Owner approval of one destructive disk command at a time."""
+"""Owner approval of one destructive disk command at a time.
+
+On: interactive owner is prompted once per command (YOLO cannot skip).
+Off: HERMES_DISK_OWNER_REVIEW=0 restores upstream hardline (never prompts).
+"""
 
 import pytest
 
@@ -43,6 +47,22 @@ def test_disk_command_requires_owner_approval_each_time(interactive_owner, comma
                for _, _, options in prompts)
 
 
+def test_always_choice_does_not_persist_for_later_disk_commands(interactive_owner):
+    """Older clients returning 'always' must not skip the next mkfs."""
+    prompts = []
+
+    def pretend_always(actual, description, **options):
+        prompts.append(actual)
+        return "always"
+
+    command = "mkfs.ext4 /dev/sdb1"
+    first = check_all_command_guards(command, "local", approval_callback=pretend_always)
+    second = check_all_command_guards(command, "local", approval_callback=pretend_always)
+    assert first["approved"] is True
+    assert second["approved"] is True
+    assert prompts == [command, command]
+
+
 def test_denial_and_absent_owner_prevent_disk_command(interactive_owner, monkeypatch):
     command = "mkfs.ext4 /dev/sdb1"
     denied = check_all_command_guards(command, "local", approval_callback=lambda *a, **k: "deny")
@@ -64,6 +84,31 @@ def test_yolo_still_requires_one_command_approval(interactive_owner):
     result = check_all_command_guards("mkfs.ext4 /dev/sdb1", "local", approval_callback=approve_once)
     assert result["approved"] is True
     assert len(seen) == 1
+
+
+def test_disk_owner_review_off_restores_hardline(interactive_owner, monkeypatch):
+    monkeypatch.setenv("HERMES_DISK_OWNER_REVIEW", "0")
+    prompts = []
+    result = check_all_command_guards(
+        "mkfs.ext4 /dev/sdb1", "local",
+        approval_callback=lambda *a, **k: prompts.append(a) or "once",
+    )
+    assert result["approved"] is False
+    assert result["hardline"] is True
+    assert prompts == []
+
+
+def test_disk_owner_review_off_blocks_under_yolo(interactive_owner, monkeypatch):
+    monkeypatch.setenv("HERMES_DISK_OWNER_REVIEW", "0")
+    enable_session_yolo("disk-review-test")
+    prompts = []
+    result = check_all_command_guards(
+        "dd if=/dev/zero of=/dev/sdb bs=1M", "local",
+        approval_callback=lambda *a, **k: prompts.append(a) or "once",
+    )
+    assert result["approved"] is False
+    assert result["hardline"] is True
+    assert prompts == []
 
 
 @pytest.mark.parametrize("command", [
