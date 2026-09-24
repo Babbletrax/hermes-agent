@@ -1,0 +1,65 @@
+name: Fork tests
+
+# Lightweight suite for Babbletrax patches. Upstream CI needs Nous 96-core
+# runners and is disabled on this fork.
+
+on:
+  pull_request:
+  push:
+    branches: [main, babble/**]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fork-tests:
+    name: Fork patches on and off
+    if: github.repository == 'Babbletrax/hermes-agent'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # 8.2.0
+        with:
+          version: "0.9.28"
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+
+      - name: Python 3.11 + deps
+        run: |
+          uv python install 3.11
+          uv venv --python 3.11
+          uv pip install -e ".[dev,acp]"
+
+      - name: Patches still present
+        run: .venv/bin/python -m pytest tests/fork/test_patch_survival.py -q --tb=short
+
+      - name: Feature on (default owner review + ACP extras)
+        run: |
+          .venv/bin/python -m pytest \
+            tests/tools/test_hardline_disk_review.py \
+            tests/tools/test_hardline_blocklist.py \
+            tests/hermes_cli/test_approvals_test.py \
+            tests/acp_adapter/test_entry.py \
+            tests/acp_adapter/test_extra_toolsets.py \
+            -q --tb=short
+
+      - name: Feature off (upstream hardline restored)
+        env:
+          HERMES_DISK_OWNER_REVIEW: "0"
+        run: |
+          .venv/bin/python -m pytest \
+            tests/tools/test_hardline_disk_review.py::test_disk_owner_review_off_restores_hardline \
+            tests/tools/test_hardline_disk_review.py::test_disk_owner_review_off_blocks_under_yolo \
+            tests/hermes_cli/test_approvals_test.py::TestVerdicts::test_disk_command_hardline_when_owner_review_off \
+            tests/acp_adapter/test_extra_toolsets.py::test_extra_toolsets_off_by_default \
+            -q --tb=short

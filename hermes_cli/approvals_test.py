@@ -70,7 +70,8 @@ def evaluate_command(command: str, env_type: str = "local") -> dict:
     is_hardline, hardline_desc = approval_detection.detect_hardline_command(command)
     if is_hardline:
         if (hardline_desc in approval._REVIEWABLE_DISK_HARDLINE
-                and approval._single_disk_command(command, hardline_desc)):
+                and approval._single_disk_command(command, hardline_desc)
+                and approval._disk_owner_review_enabled()):
             is_sudo_guess, sudo_desc = approval_detection._check_sudo_stdin_guard(command)
             if is_sudo_guess:
                 return result("hardline-deny", rule=sudo_desc, detail="sudo stdin guard (unconditional block)")

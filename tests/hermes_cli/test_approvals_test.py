@@ -72,6 +72,14 @@ class TestVerdicts:
         assert "ask-approval" in out
         assert "destructive disk command" in out
 
+    def test_disk_command_hardline_when_owner_review_off(self, isolated_approvals, capsys,
+                                                         monkeypatch):
+        monkeypatch.setenv("HERMES_DISK_OWNER_REVIEW", "0")
+        rc = at.approvals_test_command(_args(["mkfs.ext4", "/dev/sdb1"]))
+        out = capsys.readouterr().out
+        assert rc == 3
+        assert "hardline-deny" in out
+
     def test_dangerous_command_asks_with_exit_2(self, isolated_approvals, capsys):
         rc = at.approvals_test_command(_args(["rm", "-rf", "~/project/build"]))
         out = capsys.readouterr().out
